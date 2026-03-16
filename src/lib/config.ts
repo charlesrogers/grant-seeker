@@ -29,6 +29,13 @@ export const DEFAULT_KEYWORDS = [
   "trail signage",
   "trail restoration",
   "conservation volunteer",
+  "outdoor recreation",
+  "land stewardship",
+  "wildlife habitat restoration",
+  "watershed conservation",
+  "forest restoration",
+  "public lands conservation",
+  "community conservation",
 ];
 
 // Grants.gov eligibility code for 501(c)(3) nonprofits

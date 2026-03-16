@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchMultipleKeywords } from "@/lib/grants-gov";
+import { comprehensiveSearch } from "@/lib/grants-gov";
 import { scoreGrant } from "@/lib/scorer";
 import { KNOWN_GRANTS } from "@/lib/known-grants";
 import { DEFAULT_KEYWORDS } from "@/lib/config";
@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
     ? [keyword, ...DEFAULT_KEYWORDS]
     : DEFAULT_KEYWORDS;
 
-  // Fetch from Grants.gov in parallel across keywords
-  const govGrants = await searchMultipleKeywords(keywords);
+  // Comprehensive search: keywords + NR/ENV categories + DOI/USDA agencies
+  const govGrants = await comprehensiveSearch(keywords);
 
   // Score all Grants.gov results
   const scoredGov = govGrants.map(scoreGrant);
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() + deadlineDays);
     allGrants = allGrants.filter((g) => {
-      if (!g.deadline) return true; // Include grants with unknown deadlines
+      if (!g.deadline) return true;
       return new Date(g.deadline) <= cutoff;
     });
   }
@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
     return 1;
   });
 
-  // Take top 100
-  const grants = allGrants.slice(0, 100);
+  // Return all results (no cap — let the client paginate/filter)
+  const grants = allGrants;
 
   // Compute stats
   const now = new Date();

@@ -29,6 +29,8 @@ export interface GrantsGovResponse {
   };
 }
 
+export type GrantType = "federal" | "state" | "foundation" | "corporate" | "sponsorship";
+
 export interface Grant {
   id: string;
   source: "grants_gov" | "known";
@@ -45,6 +47,7 @@ export interface Grant {
   status: string;
   eligibility: string[];
   categories: string[];
+  grantType?: GrantType;
 }
 
 export interface ScoreBreakdown {

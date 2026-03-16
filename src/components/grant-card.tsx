@@ -1,9 +1,25 @@
 "use client";
 
-import type { ScoredGrant } from "@/lib/types";
+import type { ScoredGrant, GrantType } from "@/lib/types";
 import { ScoreBadge } from "./score-badge";
 import { ScoreBreakdown } from "./score-breakdown";
 import { Badge } from "@/components/ui/badge";
+
+const typeLabels: Record<GrantType, string> = {
+  federal: "Federal",
+  state: "State",
+  foundation: "Foundation",
+  corporate: "Corporate",
+  sponsorship: "Sponsorship",
+};
+
+const typeColors: Record<GrantType, string> = {
+  federal: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  state: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  foundation: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  corporate: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  sponsorship: "bg-pink-500/10 text-pink-600 border-pink-500/20",
+};
 
 function formatDeadline(deadline: string | null): {
   text: string;
@@ -77,9 +93,17 @@ export function GrantCard({
             </div>
             <Badge
               variant="secondary"
-              className="shrink-0 text-[10px] rounded-4xl"
+              className={`shrink-0 text-[10px] rounded-4xl border ${
+                grant.grantType
+                  ? typeColors[grant.grantType]
+                  : ""
+              }`}
             >
-              {grant.source === "known" ? "Curated" : "Grants.gov"}
+              {grant.grantType
+                ? typeLabels[grant.grantType]
+                : grant.source === "known"
+                  ? "Curated"
+                  : "Grants.gov"}
             </Badge>
           </div>
           <div className="flex items-center gap-4 mt-2">

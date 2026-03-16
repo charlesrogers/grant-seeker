@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import type { ScoredGrant, SearchResponse } from "@/lib/types";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import type { ScoredGrant, SearchResponse, GrantType } from "@/lib/types";
 import { SearchForm } from "@/components/search-form";
 import { GrantList } from "@/components/grant-list";
 
@@ -14,12 +14,14 @@ export default function Home() {
   });
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [grantType, setGrantType] = useState<GrantType | null>(null);
 
   const handleSearch = useCallback(
     async (params: {
       keyword: string;
       minScore: number;
       deadlineDays: number | null;
+      grantType: GrantType | null;
     }) => {
       setLoading(true);
       setHasSearched(true);
@@ -52,12 +54,18 @@ export default function Home() {
         const res = await fetch("/api/known");
         const data = await res.json();
         setGrants(data.grants);
+        const now = new Date();
+        const thirtyDays = new Date();
+        thirtyDays.setDate(now.getDate() + 30);
         setStats({
           total: data.grants.length,
           strongPlus: data.grants.filter(
             (g: ScoredGrant) => g.totalScore >= 65
           ).length,
-          upcomingDeadlines: 0,
+          upcomingDeadlines: data.grants.filter(
+            (g: ScoredGrant) =>
+              g.deadline && new Date(g.deadline) <= thirtyDays
+          ).length,
         });
       } catch (err) {
         console.error("Failed to load known grants:", err);
@@ -65,6 +73,36 @@ export default function Home() {
     }
     loadKnown();
   }, []);
+
+  // Filter by grant type (client-side)
+  const filteredGrants = useMemo(() => {
+    if (!grantType) return grants;
+    return grants.filter((g) => g.grantType === grantType);
+  }, [grants, grantType]);
+
+  // Filtered stats
+  const filteredStats = useMemo(() => {
+    const now = new Date();
+    const thirtyDays = new Date();
+    thirtyDays.setDate(now.getDate() + 30);
+    return {
+      total: filteredGrants.length,
+      strongPlus: filteredGrants.filter((g) => g.totalScore >= 65).length,
+      upcomingDeadlines: filteredGrants.filter(
+        (g) => g.deadline && new Date(g.deadline) <= thirtyDays
+      ).length,
+    };
+  }, [filteredGrants]);
+
+  // Type counts for the header
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const g of grants) {
+      const t = g.grantType || "other";
+      counts[t] = (counts[t] || 0) + 1;
+    }
+    return counts;
+  }, [grants]);
 
   return (
     <div className="min-h-screen">
@@ -88,20 +126,27 @@ export default function Home() {
 
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         {/* Search */}
-        <SearchForm onSearch={handleSearch} loading={loading} />
+        <SearchForm
+          onSearch={handleSearch}
+          loading={loading}
+          grantType={grantType}
+          onGrantTypeChange={setGrantType}
+        />
 
         {/* Stats */}
         <div className="flex gap-4">
           <div className="rounded-xl border bg-card shadow-sm shadow-black/[0.04] px-4 py-2.5 flex-1">
             <p className="text-[11px] text-muted-foreground">Total Found</p>
             <p className="text-[20px] font-bold tabular-nums">
-              {stats.total}
+              {filteredStats.total}
             </p>
           </div>
           <div className="rounded-xl border bg-card shadow-sm shadow-black/[0.04] px-4 py-2.5 flex-1">
-            <p className="text-[11px] text-muted-foreground">Strong+ Matches</p>
+            <p className="text-[11px] text-muted-foreground">
+              Strong+ Matches
+            </p>
             <p className="text-[20px] font-bold tabular-nums text-emerald-600">
-              {stats.strongPlus}
+              {filteredStats.strongPlus}
             </p>
           </div>
           <div className="rounded-xl border bg-card shadow-sm shadow-black/[0.04] px-4 py-2.5 flex-1">
@@ -109,20 +154,30 @@ export default function Home() {
               Due in 30 Days
             </p>
             <p className="text-[20px] font-bold tabular-nums text-amber-600">
-              {stats.upcomingDeadlines}
+              {filteredStats.upcomingDeadlines}
             </p>
           </div>
         </div>
 
-        {/* Results */}
+        {/* Type breakdown */}
         {!hasSearched && grants.length > 0 && (
           <div>
-            <h2 className="text-[15px] font-semibold mb-3">
-              Curated Grants for Your Mission
+            <h2 className="text-[15px] font-semibold mb-1">
+              {filteredGrants.length} Grants for Your Mission
             </h2>
             <p className="text-[12px] text-muted-foreground mb-3">
-              Pre-scored grants known to fund wilderness trail work. Click
-              &quot;Search&quot; to also pull live results from Grants.gov.
+              {typeCounts.federal || 0} Federal
+              {" / "}
+              {typeCounts.state || 0} State
+              {" / "}
+              {typeCounts.foundation || 0} Foundation
+              {" / "}
+              {typeCounts.corporate || 0} Corporate
+              {" / "}
+              {typeCounts.sponsorship || 0} Sponsorship
+              {" — "}
+              Click &quot;Search&quot; to also pull live results from
+              Grants.gov.
             </p>
           </div>
         )}
@@ -131,7 +186,8 @@ export default function Home() {
           <h2 className="text-[15px] font-semibold">
             Search Results
             <span className="text-[12px] text-muted-foreground font-normal ml-2">
-              Grants.gov + Curated
+              Grants.gov + {grants.filter((g) => g.source === "known").length}{" "}
+              Curated
             </span>
           </h2>
         )}
@@ -144,7 +200,7 @@ export default function Home() {
             </p>
           </div>
         ) : (
-          <GrantList grants={grants} />
+          <GrantList grants={filteredGrants} />
         )}
       </main>
 

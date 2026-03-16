@@ -1,65 +1,159 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useCallback, useEffect } from "react";
+import type { ScoredGrant, SearchResponse } from "@/lib/types";
+import { SearchForm } from "@/components/search-form";
+import { GrantList } from "@/components/grant-list";
 
 export default function Home() {
+  const [grants, setGrants] = useState<ScoredGrant[]>([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    strongPlus: 0,
+    upcomingDeadlines: 0,
+  });
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const handleSearch = useCallback(
+    async (params: {
+      keyword: string;
+      minScore: number;
+      deadlineDays: number | null;
+    }) => {
+      setLoading(true);
+      setHasSearched(true);
+      try {
+        const res = await fetch("/api/grants/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            keyword: params.keyword || undefined,
+            minScore: params.minScore,
+            deadlineDays: params.deadlineDays ?? undefined,
+          }),
+        });
+        const data: SearchResponse = await res.json();
+        setGrants(data.grants);
+        setStats(data.stats);
+      } catch (err) {
+        console.error("Search failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  // Load known grants on mount
+  useEffect(() => {
+    async function loadKnown() {
+      try {
+        const res = await fetch("/api/known");
+        const data = await res.json();
+        setGrants(data.grants);
+        setStats({
+          total: data.grants.length,
+          strongPlus: data.grants.filter(
+            (g: ScoredGrant) => g.totalScore >= 65
+          ).length,
+          upcomingDeadlines: 0,
+        });
+      } catch (err) {
+        console.error("Failed to load known grants:", err);
+      }
+    }
+    loadKnown();
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen">
+      {/* Nav */}
+      <header className="sticky top-0 z-50 border-b bg-white/80 dark:bg-neutral-900/80 backdrop-blur-lg">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-[20px] font-bold">Grant Seeker</h1>
+            <p className="text-[12px] text-muted-foreground">
+              Wilderness Trail Maintenance Grants
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] text-muted-foreground">Utah Focus</p>
+            <p className="text-[11px] text-muted-foreground">
+              USFS / BLM / NPS
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+        {/* Search */}
+        <SearchForm onSearch={handleSearch} loading={loading} />
+
+        {/* Stats */}
+        <div className="flex gap-4">
+          <div className="rounded-xl border bg-card shadow-sm shadow-black/[0.04] px-4 py-2.5 flex-1">
+            <p className="text-[11px] text-muted-foreground">Total Found</p>
+            <p className="text-[20px] font-bold tabular-nums">
+              {stats.total}
+            </p>
+          </div>
+          <div className="rounded-xl border bg-card shadow-sm shadow-black/[0.04] px-4 py-2.5 flex-1">
+            <p className="text-[11px] text-muted-foreground">Strong+ Matches</p>
+            <p className="text-[20px] font-bold tabular-nums text-emerald-600">
+              {stats.strongPlus}
+            </p>
+          </div>
+          <div className="rounded-xl border bg-card shadow-sm shadow-black/[0.04] px-4 py-2.5 flex-1">
+            <p className="text-[11px] text-muted-foreground">
+              Due in 30 Days
+            </p>
+            <p className="text-[20px] font-bold tabular-nums text-amber-600">
+              {stats.upcomingDeadlines}
+            </p>
+          </div>
         </div>
+
+        {/* Results */}
+        {!hasSearched && grants.length > 0 && (
+          <div>
+            <h2 className="text-[15px] font-semibold mb-3">
+              Curated Grants for Your Mission
+            </h2>
+            <p className="text-[12px] text-muted-foreground mb-3">
+              Pre-scored grants known to fund wilderness trail work. Click
+              &quot;Search&quot; to also pull live results from Grants.gov.
+            </p>
+          </div>
+        )}
+
+        {hasSearched && !loading && (
+          <h2 className="text-[15px] font-semibold">
+            Search Results
+            <span className="text-[12px] text-muted-foreground font-normal ml-2">
+              Grants.gov + Curated
+            </span>
+          </h2>
+        )}
+
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <p className="text-[12px] text-muted-foreground mt-2">
+              Searching Grants.gov across 7 keywords...
+            </p>
+          </div>
+        ) : (
+          <GrantList grants={grants} />
+        )}
       </main>
+
+      <footer className="border-t mt-12">
+        <div className="max-w-3xl mx-auto px-4 py-4 text-[11px] text-muted-foreground text-center">
+          Data from Grants.gov (real-time) and curated sources. Scores are
+          estimates — always verify eligibility on the grant website.
+        </div>
+      </footer>
     </div>
   );
 }

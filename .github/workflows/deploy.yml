@@ -1,0 +1,16 @@
+name: Deploy
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+
+jobs:
+  deploy:
+    uses: charlesrogers/claudeops/.github/workflows/build-and-deploy.yml@main
+    with:
+      image_name: grant-seeker
+      coolify_uuid: uksdecallxdk64bfhhgnlium
+    secrets:
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}

@@ -41,4 +41,4 @@ jobs:
       - name: Trigger Coolify deploy
         run: |
           curl -sf -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            "http://95.216.205.160:8000/api/v1/deploy?uuid=uksdecallxdk64bfhhgnlium&force=true"
+            "http://95.216.205.160:8000/api/v1/deploy?uuid=a520puajrs2w7lrfa06kcqit&force=true"
